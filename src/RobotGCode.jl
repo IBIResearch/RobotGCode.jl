@@ -1,6 +1,6 @@
 module RobotGCode
 
-export generate_gcode
+export generate_gcode, visualize_positions_3d
 
 """
 G-Code Generator aus HDF5-Trajektoriendatei
@@ -20,6 +20,8 @@ Abhängigkeiten:
 """
 
 using HDF5
+
+include("visual.jl")
 
 function generate_gcode(
     positionen_m::Matrix{Float64};
