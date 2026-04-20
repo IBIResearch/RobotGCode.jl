@@ -1,6 +1,9 @@
 module RobotGCode
 
 export generate_gcode, visualize_positions_3d
+export TrueTypeFont, StrokePath, GlyphPath
+export load_truetype_font, glyph_index, glyph_segments, glyph_path
+export point_at, sample_strokes, advance_width
 
 """
 G-Code Generator aus HDF5-Trajektoriendatei
@@ -22,6 +25,7 @@ Abhängigkeiten:
 using HDF5
 
 include("visual.jl")
+include("font.jl")
 
 function generate_gcode(
     positionen_m::Matrix{Float64};

@@ -31,3 +31,21 @@ mktempdir() do tempdir
     isfile(plot_file) || error("expected trajectory plot to be written")
     fig isa Figure || error("expected visualize_positions_3d to return a CairoMakie Figure")
 end
+
+# --- TrueType font glyph sampling ---
+font_path = joinpath(@__DIR__, "..", "ReliefSingleLineCAD-Regular.ttf")
+if isfile(font_path)
+    font = load_truetype_font(font_path)
+    gid_A = glyph_index(font, 'A')
+    gid_A > 0 || error("expected glyph for 'A' to exist in the bundled font")
+
+    pathA = glyph_path(font, 'A')
+    isempty(pathA.strokes) && error("expected glyph path for 'A' to have strokes")
+
+    p0 = point_at(pathA, 0.0)
+    p5 = point_at(pathA, 0.5)
+    p1 = point_at(pathA, 1.0)
+    all(isfinite, (p0.x, p0.y, p5.x, p5.y, p1.x, p1.y)) || error("expected finite glyph points")
+else
+    @warn "Skipping font test: bundled .ttf not found" font_path
+end
