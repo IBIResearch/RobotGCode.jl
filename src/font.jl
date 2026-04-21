@@ -240,24 +240,58 @@ function point_at(path::GlyphPath, t::Real)::Point2
 end
 
 
+"""Return the exact stored arc length of a stroke."""
+approx_length(path::StrokePath) = path.total_length
+
+"""Return the exact stored total arc length of a glyph."""
+approx_length(path::GlyphPath) = path.total_length
+
+"""
+	discretize(path::StrokePath; kwargs...)
+
+Discretize a stroke path using the generic parametric curve API.
+Returns an Nx2 matrix.
+"""
+function discretize(path::StrokePath; kwargs...)
+	curve = ParametricCurve(t -> begin
+		p = point_at(path, t)
+		(p.x, p.y)
+	end)
+	discretize(curve; kwargs...)
+end
+
+"""
+	discretize(path::GlyphPath; npoints=nothing, spacing=nothing, resolution=4097)
+
+Discretize each stroke of a glyph path.
+Returns one Nx2 matrix per stroke.
+"""
+function discretize(path::GlyphPath;
+	npoints::Union{Nothing,Integer} = nothing,
+	spacing::Union{Nothing,Real} = nothing,
+	resolution::Integer = 4097,
+)
+	if (npoints === nothing) == (spacing === nothing)
+		throw(ArgumentError("provide exactly one of npoints or spacing"))
+	end
+
+	if npoints !== nothing
+		return [discretize(s; npoints = npoints, resolution = resolution) for s in path.strokes]
+	end
+
+	spacing_value = Float64(spacing)
+	return [discretize(s; spacing = spacing_value, resolution = resolution) for s in path.strokes]
+end
+
+
 """Sample a stroke path into an N×2 matrix."""
 function sample(path::StrokePath, n::Integer)
-	n >= 2 || throw(ArgumentError("n must be >= 2"))
-	out = Matrix{Float64}(undef, n, 2)
-	inv = 1.0 / (n - 1)
-	@inbounds for i in 1:n
-		t = (i - 1) * inv
-		p = point_at(path, t)
-		out[i, 1] = p.x
-		out[i, 2] = p.y
-	end
-	out
+	discretize(path; npoints = n)
 end
 
 """Sample a glyph path into one polyline per stroke."""
 function sample_strokes(path::GlyphPath, n_per_stroke::Integer)
-	n_per_stroke >= 2 || throw(ArgumentError("n_per_stroke must be >= 2"))
-	[sample(s, n_per_stroke) for s in path.strokes]
+	discretize(path; npoints = n_per_stroke)
 end
 
 
