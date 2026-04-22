@@ -5,6 +5,7 @@ export TrueTypeFont, StrokePath, GlyphPath
 export load_truetype_font, glyph_index, glyph_segments, glyph_path
 export point_at, sample_strokes, advance_width
 export ParametricCurve, discretize, approx_length
+export translated, rotated, scaled, zoomed
 
 """
 G-Code Generator aus HDF5-Trajektoriendatei
@@ -28,6 +29,7 @@ using HDF5
 include("curve.jl")
 include("visual.jl")
 include("font.jl")
+include("transforms.jl")
 
 function generate_gcode(
     positionen_m::Matrix{Float64};

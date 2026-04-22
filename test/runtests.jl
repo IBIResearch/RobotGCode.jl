@@ -90,9 +90,74 @@ end
 circle_len = approx_length(t -> (cospi(2t), sinpi(2t)); resolution = 20_001)
 abs(circle_len - 2 * pi) <= 2e-3 || error("expected approximated unit-circle length to be close to 2*pi")
 
+# --- Parametric curve transforms ---
+base_curve = ParametricCurve(t -> (t, 2.0 * t, -1.0))
+
+translated_curve = RobotGCode.translated(base_curve, (1.0, -2.0, 0.5))
+pt_translated = point_at(translated_curve, 0.25)
+all(isapprox.(pt_translated, [1.25, -1.5, -0.5]; atol = 1e-12)) || error("expected translated curve point to match fixed offset")
+
+rotated_curve = RobotGCode.rotated(ParametricCurve(t -> (t, 0.0)), pi / 2)
+pt_rotated = point_at(rotated_curve, 1.0)
+all(isapprox.(pt_rotated, [0.0, 1.0]; atol = 1e-10)) || error("expected 90° rotation in XY plane")
+
+scaled_curve = RobotGCode.scaled(ParametricCurve(t -> (t, -t)), 2.0)
+pt_scaled = point_at(scaled_curve, 0.5)
+all(isapprox.(pt_scaled, [1.0, -1.0]; atol = 1e-12)) || error("expected scaled curve point to double distance from origin")
+
+zoomed_curve = RobotGCode.zoomed(ParametricCurve(t -> (0.25 * t, -0.5 * t)), 4.0)
+pt_zoomed = point_at(zoomed_curve, 1.0)
+all(isapprox.(pt_zoomed, [1.0, -2.0]; atol = 1e-12)) || error("expected zoomed alias to behave like scaled")
+
+try
+    RobotGCode.translated(ParametricCurve(t -> (t, t)), (1.0, 2.0, 3.0))
+    error("expected translated to reject offset dimension mismatch")
+catch err
+    err isa ArgumentError || rethrow(err)
+end
+
 try
     discretize(t -> (t, t); npoints = 10, spacing = 0.1)
     error("expected discretize to reject using both npoints and spacing")
 catch err
     err isa ArgumentError || rethrow(err)
+end
+
+# --- Font path transforms (ibi_imte-style flow) ---
+if isfile(font_path)
+    path_d = glyph_path(font, 'd')
+    isempty(path_d.strokes) && error("expected glyph path for 'd' to have strokes")
+
+    t_probe = 0.37
+    p_raw = point_at(path_d, t_probe)
+
+    translated_path = RobotGCode.translated(path_d, (0.25, -0.1))
+    p_translated = point_at(translated_path, t_probe)
+    isapprox(p_translated.x, p_raw.x + 0.25; atol = 1e-10) || error("expected glyph x translation to match")
+    isapprox(p_translated.y, p_raw.y - 0.1; atol = 1e-10) || error("expected glyph y translation to match")
+
+    rotated_path = RobotGCode.rotated(path_d, pi / 2)
+    p_rotated = point_at(rotated_path, t_probe)
+    isapprox(p_rotated.x, -p_raw.y; atol = 1e-8) || error("expected glyph rotation x to match 90° rotation")
+    isapprox(p_rotated.y, p_raw.x; atol = 1e-8) || error("expected glyph rotation y to match 90° rotation")
+
+    scaled_path = RobotGCode.scaled(path_d, 1.5)
+    p_scaled = point_at(scaled_path, t_probe)
+    isapprox(p_scaled.x, 1.5 * p_raw.x; atol = 1e-10) || error("expected glyph x scaling to match factor")
+    isapprox(p_scaled.y, 1.5 * p_raw.y; atol = 1e-10) || error("expected glyph y scaling to match factor")
+
+    zoomed_path = RobotGCode.zoomed(path_d, 0.75)
+    p_zoomed = point_at(zoomed_path, t_probe)
+    isapprox(p_zoomed.x, 0.75 * p_raw.x; atol = 1e-10) || error("expected glyph zoom x scaling to match factor")
+    isapprox(p_zoomed.y, 0.75 * p_raw.y; atol = 1e-10) || error("expected glyph zoom y scaling to match factor")
+
+    npoints_per_stroke = 40
+    transformed_strokes = discretize(rotated_path; npoints = npoints_per_stroke)
+    length(transformed_strokes) == length(path_d.strokes) || error("expected one discretized transformed polyline per stroke")
+    all(size(poly) == (npoints_per_stroke, 2) for poly in transformed_strokes) || error("expected transformed glyph discretization to keep N x 2 shape")
+
+    # Same shape conversion used in trajectories/ibi_imte/main.jl.
+    strokes2d = vcat(transformed_strokes...)
+    strokes3d = hcat(strokes2d, zeros(size(strokes2d, 1)))
+    size(strokes3d, 2) == 3 || error("expected converted transformed glyph data to be 3D-compatible")
 end
