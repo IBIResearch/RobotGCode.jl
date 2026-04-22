@@ -1,5 +1,8 @@
 using RobotGCode
 
+DATA_FOLDER = "./data/helix"
+mkpath(DATA_FOLDER)
+
 """
     helix(t; turns=3)
 
@@ -18,3 +21,20 @@ function helix(t; turns::Real=3)
 
     return (x, y, z)
 end
+
+npoints = 200
+points = discretize(helix; npoints=npoints)
+
+points[:, 1] .*= 0.18
+points[:, 2] .*= 0.18
+points[:, 3] .*= 0.13
+
+fig = visualize_positions_3d(points; xlims=(-0.18, 0.18), ylims=(-0.18, 0.18), zlims=(0.0, 0.13))
+display(fig)
+
+generate_gcode(
+    points;
+    ausgabe_datei = joinpath(DATA_FOLDER, "helix.gcode"),
+    frame_time = 1.0,
+    offset = (0.0, 0.0, 0.0),
+)
