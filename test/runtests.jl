@@ -199,6 +199,25 @@ single_stroke_curve = merged(stroke1)
 p_single_mid = point_at(single_stroke_curve, 0.4)
 all(isapprox.(p_single_mid, [0.4, 0.0]; atol = 1e-12)) || error("expected merged(stroke) to parameterize the stroke itself")
 
+reversed_stroke = RobotGCode.reversed(stroke1)
+p_reversed_stroke_start = point_at(reversed_stroke, 0.0)
+p_reversed_stroke_mid = point_at(reversed_stroke, 0.4)
+p_reversed_stroke_end = point_at(reversed_stroke, 1.0)
+isapprox(p_reversed_stroke_start.x, 1.0; atol = 1e-12) || error("expected reversed stroke to start at original stroke end x")
+isapprox(p_reversed_stroke_start.y, 0.0; atol = 1e-12) || error("expected reversed stroke to start at original stroke end y")
+isapprox(p_reversed_stroke_mid.x, 0.6; atol = 1e-12) || error("expected reversed stroke midpoint to traverse in opposite direction")
+isapprox(p_reversed_stroke_mid.y, 0.0; atol = 1e-12) || error("expected reversed stroke midpoint y to remain unchanged")
+isapprox(p_reversed_stroke_end.x, 0.0; atol = 1e-12) || error("expected reversed stroke to end at original stroke start x")
+isapprox(p_reversed_stroke_end.y, 0.0; atol = 1e-12) || error("expected reversed stroke to end at original stroke start y")
+
+reversed_glyph = RobotGCode.reversed(glyph_two_strokes)
+p_reversed_glyph_start = point_at(reversed_glyph, 0.0)
+p_reversed_glyph_end = point_at(reversed_glyph, 1.0)
+isapprox(p_reversed_glyph_start.x, 2.0; atol = 1e-12) || error("expected reversed glyph to start at original glyph end x")
+isapprox(p_reversed_glyph_start.y, 1.0; atol = 1e-12) || error("expected reversed glyph to start at original glyph end y")
+isapprox(p_reversed_glyph_end.x, 0.0; atol = 1e-12) || error("expected reversed glyph to end at original glyph start x")
+isapprox(p_reversed_glyph_end.y, 0.0; atol = 1e-12) || error("expected reversed glyph to end at original glyph start y")
+
 try
     merged(RobotGCode.GlyphPath(RobotGCode.StrokePath[], Float64[], Float64[], 0.0))
     error("expected merged glyph conversion to reject empty glyph")
@@ -224,6 +243,17 @@ all(isapprox.(pt_scaled, [1.0, -1.0]; atol = 1e-12)) || error("expected scaled c
 zoomed_curve = RobotGCode.zoomed(ParametricCurve(t -> (0.25 * t, -0.5 * t)), 4.0)
 pt_zoomed = point_at(zoomed_curve, 1.0)
 all(isapprox.(pt_zoomed, [1.0, -2.0]; atol = 1e-12)) || error("expected zoomed alias to behave like scaled")
+
+reversed_curve = RobotGCode.reversed(base_curve)
+for t in (0.0, 0.2, 0.5, 1.0)
+    p_expected = point_at(base_curve, 1.0 - t)
+    p_reversed = point_at(reversed_curve, t)
+    all(isapprox.(p_reversed, p_expected; atol = 1e-12)) || error("expected reversed curve to evaluate at complementary parameter t=$(t)")
+end
+
+reversed_from_function = RobotGCode.reversed(t -> (t^2, t))
+p_reversed_function = point_at(reversed_from_function, 0.3)
+all(isapprox.(p_reversed_function, [0.49, 0.7]; atol = 1e-12)) || error("expected reversed function overload to traverse from end to start")
 
 try
     RobotGCode.translated(ParametricCurve(t -> (t, t)), (1.0, 2.0, 3.0))
@@ -266,6 +296,21 @@ if isfile(font_path)
     p_zoomed = point_at(zoomed_path, t_probe)
     isapprox(p_zoomed.x, 0.75 * p_raw.x; atol = 1e-10) || error("expected glyph zoom x scaling to match factor")
     isapprox(p_zoomed.y, 0.75 * p_raw.y; atol = 1e-10) || error("expected glyph zoom y scaling to match factor")
+
+    reversed_path = RobotGCode.reversed(path_d)
+    p_reversed_start = point_at(reversed_path, 0.0)
+    p_reversed_end = point_at(reversed_path, 1.0)
+    p_raw_start = point_at(path_d, 0.0)
+    p_raw_end = point_at(path_d, 1.0)
+    isapprox(p_reversed_start.x, p_raw_end.x; atol = 1e-10) || error("expected reversed glyph path to start at original end x")
+    isapprox(p_reversed_start.y, p_raw_end.y; atol = 1e-10) || error("expected reversed glyph path to start at original end y")
+    isapprox(p_reversed_end.x, p_raw_start.x; atol = 1e-10) || error("expected reversed glyph path to end at original start x")
+    isapprox(p_reversed_end.y, p_raw_start.y; atol = 1e-10) || error("expected reversed glyph path to end at original start y")
+
+    p_reversed_probe = point_at(reversed_path, t_probe)
+    p_raw_complement = point_at(path_d, 1.0 - t_probe)
+    isapprox(p_reversed_probe.x, p_raw_complement.x; atol = 1e-8) || error("expected reversed glyph x traversal to match complementary parameter")
+    isapprox(p_reversed_probe.y, p_raw_complement.y; atol = 1e-8) || error("expected reversed glyph y traversal to match complementary parameter")
 
     npoints_per_stroke = 40
     transformed_strokes = discretize(rotated_path; npoints = npoints_per_stroke)

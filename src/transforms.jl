@@ -35,6 +35,17 @@ function _transform_glyph(path::GlyphPath, tr::Transform2D)
 	_build_glyph_path(strokes)
 end
 
+function _reversed_segment(seg::Segment2D)
+	if seg isa LineSeg2D
+		s = seg::LineSeg2D
+		return LineSeg2D(s.p1, s.p0)
+	elseif seg isa QuadSeg2D
+		s = seg::QuadSeg2D
+		return QuadSeg2D(s.p2, s.p1, s.p0)
+	end
+	throw(ArgumentError("unsupported segment type $(typeof(seg))"))
+end
+
 """
 	translated(curve, offset)
 
@@ -175,6 +186,35 @@ function scaled(path::GlyphPath, factor::Real; center = (0.0, 0.0))
 	tr = compose(back, compose(scl, to_origin))
 
 	_transform_glyph(path, tr)
+end
+
+"""
+	reversed(curve)
+
+Return a copy of a curve/path that traverses from end to start.
+"""
+function reversed(curve::ParametricCurve)
+	ParametricCurve(t -> point_at(curve, 1.0 - t))
+end
+
+reversed(f::Function) = reversed(ParametricCurve(f))
+
+function reversed(path::StrokePath)
+	n = length(path.segments)
+	segs = Vector{Segment2D}(undef, n)
+	@inbounds for i in 1:n
+		segs[i] = _reversed_segment(path.segments[n - i + 1])
+	end
+	_build_stroke_path(segs)
+end
+
+function reversed(path::GlyphPath)
+	n = length(path.strokes)
+	strokes = Vector{StrokePath}(undef, n)
+	@inbounds for i in 1:n
+		strokes[i] = reversed(path.strokes[n - i + 1])
+	end
+	_build_glyph_path(strokes)
 end
 
 """

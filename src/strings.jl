@@ -38,7 +38,7 @@ function string_curve(
 			throw(ArgumentError("No glyph for character '$c' (U+$cp) in font"))
 		end
 
-		path = glyph_path(font, c; normalize = normalize, scale = scale, flip_y = flip_y)
+		path = reversed(glyph_path(font, c; normalize = normalize, scale = scale, flip_y = flip_y))
 
 		if !isempty(path.strokes)
 			shifted = translated(path, (pen_x, 0.0))
