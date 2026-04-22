@@ -65,6 +65,49 @@ if isfile(font_path)
 
     legacy_strokes = sample_strokes(pathA, 20)
     length(legacy_strokes) == length(glyph_strokes) || error("expected sample_strokes compatibility with discretize")
+
+    # --- String to single ParametricCurve layout ---
+    ibi_curve = string_curve(font, "IBI")
+    p_ibi_start = point_at(ibi_curve, 0.0)
+    p_ibi_end = point_at(ibi_curve, 1.0)
+
+    glyph_I = glyph_path(font, 'I')
+    curve_I = merged(glyph_I)
+    p_I_start = point_at(curve_I, 0.0)
+    all(isapprox.(p_ibi_start, p_I_start; atol = 1e-10)) || error("expected string curve to start at the first glyph start point")
+
+    gid_I = glyph_index(font, 'I')
+    gid_B = glyph_index(font, 'B')
+    unit_scale = 1.0 / font.unitsPerEm
+    x_shift_last_I = (advance_width(font, gid_I) + advance_width(font, gid_B)) * unit_scale
+    shifted_last_I = RobotGCode.translated(glyph_I, (x_shift_last_I, 0.0))
+    p_expected_ibi_end = point_at(merged(shifted_last_I), 1.0)
+    all(isapprox.(p_ibi_end, p_expected_ibi_end; atol = 1e-8)) || error("expected string curve layout to use cumulative glyph advances")
+
+    tight_curve = string_curve(font, "II")
+    wide_curve = string_curve(font, "II"; letter_spacing = 0.25)
+    p_tight_end = point_at(tight_curve, 1.0)
+    p_wide_end = point_at(wide_curve, 1.0)
+    isapprox(p_wide_end[1] - p_tight_end[1], 0.25; atol = 1e-8) || error("expected letter_spacing to increase horizontal distance between glyphs")
+    isapprox(p_wide_end[2], p_tight_end[2]; atol = 1e-8) || error("expected letter_spacing to not change vertical placement")
+
+    auto_font_curve = string_curve("I")
+    p_auto_end = point_at(auto_font_curve, 1.0)
+    all(isfinite, p_auto_end) || error("expected auto-font string curve endpoint to be finite")
+
+    try
+        string_curve(font, "")
+        error("expected string_curve to reject empty text")
+    catch err
+        err isa ArgumentError || rethrow(err)
+    end
+
+    try
+        string_curve(font, string(Char(0x10ffff)))
+        error("expected string_curve to reject missing glyphs")
+    catch err
+        err isa ArgumentError || rethrow(err)
+    end
 else
     @warn "Skipping font test: bundled .ttf not found" font_path
 end
