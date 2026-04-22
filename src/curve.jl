@@ -118,6 +118,16 @@ function _sample_by_distances(curve::ParametricCurve, targets::Vector{Float64}, 
 	points
 end
 
+@inline function _vector_distance(a::AbstractVector{<:Real}, b::AbstractVector{<:Real})
+	length(a) == length(b) || throw(ArgumentError("distance vectors must have same dimension"))
+	acc = 0.0
+	@inbounds for i in eachindex(a, b)
+		d = Float64(a[i]) - Float64(b[i])
+		acc += d * d
+	end
+	sqrt(acc)
+end
+
 """
 	point_at(curve, t)
 
@@ -209,3 +219,59 @@ end
 Discretize a raw curve function `f(t)`.
 """
 discretize(f::Function; kwargs...) = discretize(ParametricCurve(f); kwargs...)
+
+"""
+	merged(curve_a, curve_b; resolution=4097)
+
+Return a single curve that follows `curve_a`, then a straight connector,
+then `curve_b`.
+
+The resulting parameterization is proportional to approximate arc lengths of
+the three segments (first curve, connector, second curve).
+"""
+function merged(curve_a::ParametricCurve, curve_b::ParametricCurve; resolution::Integer = 4097)
+	resolution >= 2 || throw(ArgumentError("resolution must be >= 2"))
+
+	a_start = point_at(curve_a, 0.0)
+	a_end = point_at(curve_a, 1.0)
+	b_start = point_at(curve_b, 0.0)
+	b_end = point_at(curve_b, 1.0)
+
+	dim = length(a_start)
+	length(a_end) == dim || throw(ArgumentError("first curve dimension changed: expected $dim, got $(length(a_end))"))
+	length(b_start) == dim || throw(ArgumentError("curve dimension mismatch: first curve is $dim, second starts with $(length(b_start))"))
+	length(b_end) == dim || throw(ArgumentError("second curve dimension changed: expected $dim, got $(length(b_end))"))
+
+	len_a = approx_length(curve_a; resolution = resolution)
+	len_connector = _vector_distance(a_end, b_start)
+	len_b = approx_length(curve_b; resolution = resolution)
+	total_length = len_a + len_connector + len_b
+
+	total_length > 0.0 || return ParametricCurve(_ -> copy(a_start))
+
+	ParametricCurve(t -> begin
+		if t <= 0.0
+			return point_at(curve_a, 0.0)
+		elseif t >= 1.0
+			return point_at(curve_b, 1.0)
+		end
+
+		d = t * total_length
+
+		if d <= len_a
+			local_t = len_a == 0.0 ? 0.0 : clamp(d / len_a, 0.0, 1.0)
+			return point_at(curve_a, local_t)
+		elseif d <= len_a + len_connector
+			len_connector == 0.0 && return copy(a_end)
+			alpha = clamp((d - len_a) / len_connector, 0.0, 1.0)
+			return a_end .+ alpha .* (b_start .- a_end)
+		else
+			local_t = len_b == 0.0 ? 1.0 : clamp((d - len_a - len_connector) / len_b, 0.0, 1.0)
+			return point_at(curve_b, local_t)
+		end
+	end)
+end
+
+merged(curve_a::Function, curve_b::Function; kwargs...) = merged(ParametricCurve(curve_a), ParametricCurve(curve_b); kwargs...)
+merged(curve_a::ParametricCurve, curve_b::Function; kwargs...) = merged(curve_a, ParametricCurve(curve_b); kwargs...)
+merged(curve_a::Function, curve_b::ParametricCurve; kwargs...) = merged(ParametricCurve(curve_a), curve_b; kwargs...)

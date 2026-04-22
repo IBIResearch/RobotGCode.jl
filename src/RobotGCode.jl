@@ -4,7 +4,7 @@ export generate_gcode, visualize_positions_3d
 export TrueTypeFont, StrokePath, GlyphPath
 export load_truetype_font, glyph_index, glyph_segments, glyph_path
 export point_at, sample_strokes, advance_width
-export ParametricCurve, discretize, approx_length
+export ParametricCurve, discretize, approx_length, merged
 export translated, rotated, scaled, zoomed
 
 """

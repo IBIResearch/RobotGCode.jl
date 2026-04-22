@@ -90,6 +90,44 @@ end
 circle_len = approx_length(t -> (cospi(2t), sinpi(2t)); resolution = 20_001)
 abs(circle_len - 2 * pi) <= 2e-3 || error("expected approximated unit-circle length to be close to 2*pi")
 
+# --- Curve merge with linear connector ---
+first_curve = ParametricCurve(t -> (t, 0.0))
+second_curve = ParametricCurve(t -> (2.0 + t, 1.0))
+merged_curve = merged(first_curve, second_curve)
+
+p_merged_start = point_at(merged_curve, 0.0)
+p_merged_end = point_at(merged_curve, 1.0)
+all(isapprox.(p_merged_start, [0.0, 0.0]; atol = 1e-12)) || error("expected merged curve to start at first curve start point")
+all(isapprox.(p_merged_end, [3.0, 1.0]; atol = 1e-12)) || error("expected merged curve to end at second curve end point")
+
+len_first = approx_length(first_curve)
+len_connector = sqrt(2.0)
+len_second = approx_length(second_curve)
+len_total = len_first + len_connector + len_second
+
+t_connector_start = len_first / len_total
+t_connector_mid = (len_first + 0.5 * len_connector) / len_total
+t_connector_end = (len_first + len_connector) / len_total
+
+p_connector_start = point_at(merged_curve, t_connector_start)
+p_connector_mid = point_at(merged_curve, t_connector_mid)
+p_connector_end = point_at(merged_curve, t_connector_end)
+
+all(isapprox.(p_connector_start, [1.0, 0.0]; atol = 1e-10)) || error("expected merged curve to reach first endpoint at connector start")
+all(isapprox.(p_connector_mid, [1.5, 0.5]; atol = 1e-10)) || error("expected merged curve midpoint to lie on linear connector")
+all(isapprox.(p_connector_end, [2.0, 1.0]; atol = 1e-10)) || error("expected merged curve to reach second startpoint at connector end")
+
+merged_from_functions = merged(t -> (t, 0.0), t -> (2.0 + t, 1.0))
+p_fn_mid = point_at(merged_from_functions, t_connector_mid)
+all(isapprox.(p_fn_mid, [1.5, 0.5]; atol = 1e-10)) || error("expected merged function overload to match ParametricCurve merge")
+
+try
+    merged(ParametricCurve(t -> (t, 0.0)), ParametricCurve(t -> (t, 0.0, 0.0)))
+    error("expected merged to reject dimension mismatch")
+catch err
+    err isa ArgumentError || rethrow(err)
+end
+
 # --- Parametric curve transforms ---
 base_curve = ParametricCurve(t -> (t, 2.0 * t, -1.0))
 
