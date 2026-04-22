@@ -22,7 +22,7 @@ function helix(t; turns::Real=3)
     return (x, y, z)
 end
 
-npoints = 200
+npoints = 400
 points = discretize(helix; npoints=npoints)
 
 points[:, 1] .*= 0.18
