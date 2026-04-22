@@ -13,9 +13,9 @@ Archimedean spiral trajectory with:
 - configurable number of turns
 """
 function spiral(t; turns::Real=6, r_margin=0.1)
-	t_clamped = clamp(float(t), r_margin, 1.0)
+	t_clamped = clamp(float(t), 0.0, 1.0)
 	theta = 2pi * turns * t_clamped
-	radius = t_clamped
+	radius = t_clamped + r_margin
 
 	x = radius * cos(theta)
 	y = radius * sin(theta)
