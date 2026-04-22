@@ -68,6 +68,16 @@ generate_gcode(
 )
 ```
 
+### Lift a 2D curve to 3D before discretizing
+
+```julia
+using RobotGCode
+
+curve2d = string_curve("IMTE")
+curve3d = with_z(curve2d, 0.0)
+points = discretize(curve3d; npoints = 200)  # Nx3
+```
+
 ## Input Format
 
 The HDF5 input file must contain a dataset at:

@@ -77,6 +77,25 @@ function translated(path::GlyphPath, offset)
 end
 
 """
+	with_z(curve, z=0.0)
+
+Lift a 2D curve into 3D by appending a constant `z` coordinate.
+"""
+function with_z(curve::ParametricCurve, z::Real = 0.0)
+	p0 = point_at(curve, 0.0)
+	length(p0) == 2 || throw(ArgumentError("with_z expects a 2D curve, got dimension $(length(p0))"))
+	z_value = Float64(z)
+
+	ParametricCurve(t -> begin
+		p = point_at(curve, t)
+		length(p) == 2 || throw(ArgumentError("curve point dimension changed: expected 2, got $(length(p))"))
+		(p[1], p[2], z_value)
+	end)
+end
+
+with_z(f::Function, z::Real = 0.0) = with_z(ParametricCurve(f), z)
+
+"""
 	rotated(curve, angle; center=nothing, axes=(1,2))
 
 Return a rotated copy of a curve/path.

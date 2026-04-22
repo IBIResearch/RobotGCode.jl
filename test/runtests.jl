@@ -251,6 +251,18 @@ zoomed_curve = RobotGCode.zoomed(ParametricCurve(t -> (0.25 * t, -0.5 * t)), 4.0
 pt_zoomed = point_at(zoomed_curve, 1.0)
 all(isapprox.(pt_zoomed, [1.0, -2.0]; atol = 1e-12)) || error("expected zoomed alias to behave like scaled")
 
+curve_3d = RobotGCode.with_z(ParametricCurve(t -> (t, -2.0 * t)), 0.25)
+pt_curve_3d = point_at(curve_3d, 0.5)
+all(isapprox.(pt_curve_3d, [0.5, -1.0, 0.25]; atol = 1e-12)) || error("expected with_z to append constant z coordinate")
+
+curve_3d_points = discretize(curve_3d; npoints = 9)
+size(curve_3d_points) == (9, 3) || error("expected with_z discretization to return Nx3 matrix")
+all(isapprox.(curve_3d_points[:, 3], fill(0.25, 9); atol = 1e-12)) || error("expected with_z discretized points to keep constant z")
+
+curve_3d_from_function = RobotGCode.with_z(t -> (2.0 * t, t^2), -0.1)
+pt_curve_3d_from_function = point_at(curve_3d_from_function, 0.5)
+all(isapprox.(pt_curve_3d_from_function, [1.0, 0.25, -0.1]; atol = 1e-12)) || error("expected with_z function overload to lift 2D curves")
+
 reversed_curve = RobotGCode.reversed(base_curve)
 for t in (0.0, 0.2, 0.5, 1.0)
     p_expected = point_at(base_curve, 1.0 - t)
@@ -265,6 +277,13 @@ all(isapprox.(p_reversed_function, [0.49, 0.7]; atol = 1e-12)) || error("expecte
 try
     RobotGCode.translated(ParametricCurve(t -> (t, t)), (1.0, 2.0, 3.0))
     error("expected translated to reject offset dimension mismatch")
+catch err
+    err isa ArgumentError || rethrow(err)
+end
+
+try
+    RobotGCode.with_z(ParametricCurve(t -> (t, t, 0.0)), 0.0)
+    error("expected with_z to reject non-2D curves")
 catch err
     err isa ArgumentError || rethrow(err)
 end
@@ -324,8 +343,8 @@ if isfile(font_path)
     length(transformed_strokes) == length(path_d.strokes) || error("expected one discretized transformed polyline per stroke")
     all(size(poly) == (npoints_per_stroke, 2) for poly in transformed_strokes) || error("expected transformed glyph discretization to keep N x 2 shape")
 
-    # Same shape conversion used in trajectories/ibi_imte/main.jl.
-    strokes2d = vcat(transformed_strokes...)
-    strokes3d = hcat(strokes2d, zeros(size(strokes2d, 1)))
-    size(strokes3d, 2) == 3 || error("expected converted transformed glyph data to be 3D-compatible")
+    transformed_curve_3d = RobotGCode.with_z(merged(rotated_path), 0.0)
+    transformed_points_3d = discretize(transformed_curve_3d; npoints = 4 * npoints_per_stroke)
+    size(transformed_points_3d, 2) == 3 || error("expected transformed lifted curve discretization to be 3D-compatible")
+    all(isapprox.(transformed_points_3d[:, 3], 0.0; atol = 1e-12)) || error("expected transformed lifted curve discretization to keep z=0")
 end
