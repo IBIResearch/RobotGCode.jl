@@ -283,6 +283,35 @@ function discretize(path::GlyphPath;
 	return [discretize(s; spacing = spacing_value, resolution = resolution) for s in path.strokes]
 end
 
+"""
+	merged(path::StrokePath)
+
+Convert a stroke path into a single 2D `ParametricCurve` on `t in [0,1]`.
+"""
+function merged(path::StrokePath)
+	ParametricCurve(t -> begin
+		p = point_at(path, t)
+		(p.x, p.y)
+	end)
+end
+
+"""
+	merged(path::GlyphPath; resolution=4097)
+
+Convert a multi-stroke glyph into one `ParametricCurve` on `t in [0,1]` by
+connecting consecutive strokes with straight segments.
+"""
+function merged(path::GlyphPath; resolution::Integer = 4097)
+	resolution >= 2 || throw(ArgumentError("resolution must be >= 2"))
+	isempty(path.strokes) && throw(ArgumentError("glyph has no strokes"))
+
+	curve = merged(path.strokes[1])
+	@inbounds for i in 2:length(path.strokes)
+		curve = merged(curve, merged(path.strokes[i]); resolution = resolution)
+	end
+	curve
+end
+
 
 """Sample a stroke path into an N×2 matrix."""
 function sample(path::StrokePath, n::Integer)

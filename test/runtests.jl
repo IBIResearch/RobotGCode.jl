@@ -128,6 +128,41 @@ catch err
     err isa ArgumentError || rethrow(err)
 end
 
+# --- GlyphPath merged into one curve with linear stroke connectors ---
+p00 = RobotGCode.Point2(0.0, 0.0)
+p10 = RobotGCode.Point2(1.0, 0.0)
+p20 = RobotGCode.Point2(2.0, 0.0)
+p21 = RobotGCode.Point2(2.0, 1.0)
+
+stroke1 = RobotGCode.StrokePath(RobotGCode.Segment2D[RobotGCode.LineSeg2D(p00, p10)], [1.0], [1.0], 1.0)
+stroke2 = RobotGCode.StrokePath(RobotGCode.Segment2D[RobotGCode.LineSeg2D(p20, p21)], [1.0], [1.0], 1.0)
+glyph_two_strokes = RobotGCode.GlyphPath([stroke1, stroke2], [1.0, 1.0], [1.0, 2.0], 2.0)
+
+glyph_curve = merged(glyph_two_strokes)
+
+p_glyph_start = point_at(glyph_curve, 0.0)
+p_glyph_conn_start = point_at(glyph_curve, 1.0 / 3.0)
+p_glyph_conn_mid = point_at(glyph_curve, 0.5)
+p_glyph_conn_end = point_at(glyph_curve, 2.0 / 3.0)
+p_glyph_end = point_at(glyph_curve, 1.0)
+
+all(isapprox.(p_glyph_start, [0.0, 0.0]; atol = 1e-12)) || error("expected merged glyph curve to start at first stroke start")
+all(isapprox.(p_glyph_conn_start, [1.0, 0.0]; atol = 1e-12)) || error("expected merged glyph curve to reach first stroke end at connector start")
+all(isapprox.(p_glyph_conn_mid, [1.5, 0.0]; atol = 1e-12)) || error("expected merged glyph connector midpoint to be linear")
+all(isapprox.(p_glyph_conn_end, [2.0, 0.0]; atol = 1e-12)) || error("expected merged glyph curve to reach second stroke start at connector end")
+all(isapprox.(p_glyph_end, [2.0, 1.0]; atol = 1e-12)) || error("expected merged glyph curve to end at last stroke end")
+
+single_stroke_curve = merged(stroke1)
+p_single_mid = point_at(single_stroke_curve, 0.4)
+all(isapprox.(p_single_mid, [0.4, 0.0]; atol = 1e-12)) || error("expected merged(stroke) to parameterize the stroke itself")
+
+try
+    merged(RobotGCode.GlyphPath(RobotGCode.StrokePath[], Float64[], Float64[], 0.0))
+    error("expected merged glyph conversion to reject empty glyph")
+catch err
+    err isa ArgumentError || rethrow(err)
+end
+
 # --- Parametric curve transforms ---
 base_curve = ParametricCurve(t -> (t, 2.0 * t, -1.0))
 
