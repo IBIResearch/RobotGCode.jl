@@ -42,6 +42,13 @@ if isfile(font_path)
     pathA = glyph_path(font, 'A')
     isempty(pathA.strokes) && error("expected glyph path for 'A' to have strokes")
 
+    gid_E = glyph_index(font, 'E')
+    contours_E = glyph_segments(font, gid_E)
+    if !isempty(contours_E) && !isempty(contours_E[1]) && contours_E[1][end] isa RobotGCode.LineSeg2D
+        pathE = glyph_path(font, 'E')
+        length(pathE.strokes[1].segments) == length(contours_E[1]) - 1 || error("expected glyph_path('E') to drop the last segment of the first stroke")
+    end
+
     p0 = point_at(pathA, 0.0)
     p5 = point_at(pathA, 0.5)
     p1 = point_at(pathA, 1.0)

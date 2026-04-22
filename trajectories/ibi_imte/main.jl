@@ -1,9 +1,9 @@
 using RobotGCode
 
 font = load_truetype_font()          # auto-finds bundled .ttf
-path = glyph_path(font, 'E')         # GlyphPath with parameter domain t in [0,1]
-curve = merged(path)
-# curve = string_curve("imte")
+# path = glyph_path(font, 'E')         # GlyphPath with parameter domain t in [0,1]
+# curve = merged(path.strokes[1])
+curve = string_curve("IMTE")
 
 npoints_per_stroke = 200
 points2d = discretize(curve; npoints = npoints_per_stroke)

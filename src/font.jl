@@ -868,6 +868,15 @@ function _compound_glyph_segments(font::TrueTypeFont, gpos::Int, tr::Transform2D
 end
 
 
+function _apply_glyph_exceptions!(contours::Vector{Vector{Segment2D}}, cp::UInt32)
+	# ReliefSingleLineCAD has a spurious closing edge in uppercase 'E'.
+	if cp == UInt32('E') && !isempty(contours) && !isempty(contours[1]) && contours[1][end] isa LineSeg2D
+		pop!(contours[1])
+	end
+	contours
+end
+
+
 """\
 	glyph_path(font, char_or_codepoint; normalize=true, scale=1.0, translate=Point2(0,0), flip_y=false)
 
@@ -889,6 +898,7 @@ function glyph_path(
 	gid == 0 && throw(ArgumentError("No glyph for codepoint U+$(uppercase(string(cp, base=16))) in font"))
 
 	contours = glyph_segments(font, gid)
+	_apply_glyph_exceptions!(contours, cp)
 	s = (normalize ? (1.0 / font.unitsPerEm) : 1.0) * Float64(scale)
 	ysign = flip_y ? -1.0 : 1.0
 
