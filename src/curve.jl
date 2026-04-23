@@ -160,11 +160,55 @@ function approx_length(curve::ParametricCurve; resolution::Integer = 4097)
 end
 
 """
+	bounding_box(curve; resolution=4097)
+
+Approximate an axis-aligned bounding box (AABB) for a parametric curve by
+sampling `resolution` values of `t` uniformly in `[0, 1]`.
+
+Returns a vector of `(min, max)` tuples, one per coordinate.
+Increase `resolution` if you need a tighter bound.
+"""
+function bounding_box(curve::ParametricCurve; resolution::Integer = 4097)
+	resolution >= 2 || throw(ArgumentError("resolution must be >= 2"))
+
+	ts = range(0.0, 1.0, length = resolution)
+	p0 = point_at(curve, first(ts))
+	dim = length(p0)
+	dim > 0 || throw(ArgumentError("curve points must have at least one coordinate"))
+
+	mins = copy(p0)
+	maxs = copy(p0)
+
+	@inbounds for i in 2:resolution
+		p = point_at(curve, ts[i])
+		_validate_point_dimension(p, dim)
+		for k in 1:dim
+			x = p[k]
+			if x < mins[k]
+				mins[k] = x
+			end
+			if x > maxs[k]
+				maxs[k] = x
+			end
+		end
+	end
+
+	[(mins[k], maxs[k]) for k in 1:dim]
+end
+
+"""
 	approx_length(f; resolution=4097)
 
 Approximate arc length of a raw curve function `f(t)`.
 """
 approx_length(f::Function; resolution::Integer = 4097) = approx_length(ParametricCurve(f); resolution)
+
+"""
+	bounding_box(f; kwargs...)
+
+Approximate a bounding box for a raw curve function `f(t)`.
+"""
+bounding_box(f::Function; kwargs...) = bounding_box(ParametricCurve(f); kwargs...)
 
 """
 	discretize(curve; npoints=nothing, spacing=nothing, resolution=4097)
@@ -275,3 +319,5 @@ end
 merged(curve_a::Function, curve_b::Function; kwargs...) = merged(ParametricCurve(curve_a), ParametricCurve(curve_b); kwargs...)
 merged(curve_a::ParametricCurve, curve_b::Function; kwargs...) = merged(curve_a, ParametricCurve(curve_b); kwargs...)
 merged(curve_a::Function, curve_b::ParametricCurve; kwargs...) = merged(ParametricCurve(curve_a), curve_b; kwargs...)
+
+

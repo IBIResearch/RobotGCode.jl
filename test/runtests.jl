@@ -137,6 +137,13 @@ for i in 2:(size(spacing_points, 1) - 1)
     abs(dist - 0.2) <= 1e-6 || error("expected interior spacing close to 0.2, got $dist")
 end
 
+# --- Parametric curve bounding boxes ---
+line_bbox = bounding_box(line_curve; resolution = 5)
+line_bbox == [(0.0, 2.0), (-1.0, -1.0), (0.5, 0.5)] || error("expected bounding_box(line_curve) to return per-axis min/max ranges")
+
+fn_bbox = bounding_box(t -> (t, -t); resolution = 3)
+fn_bbox == [(0.0, 1.0), (-1.0, 0.0)] || error("expected bounding_box(function) to match sampled min/max")
+
 circle_len = approx_length(t -> (cospi(2t), sinpi(2t)); resolution = 20_001)
 abs(circle_len - 2 * pi) <= 2e-3 || error("expected approximated unit-circle length to be close to 2*pi")
 
