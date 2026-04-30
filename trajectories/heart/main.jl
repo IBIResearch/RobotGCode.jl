@@ -4,9 +4,9 @@ DATA_FOLDER = "./data/heart"
 mkpath(DATA_FOLDER)
 
 # Robot workspace bounds (mm) in the robot coordinate frame.
-X_MIN, X_MAX = -160.93, 189.070
-Y_MIN, Y_MAX = -172.602, 178.123
-Z = -70.0
+X_MIN, X_MAX = -160., 160.
+Y_MIN, Y_MAX = -170., 170.
+Z = -25.0
 
 START = (-160.93, 200.0, 0.0)
 SHALTER = (-160.93, 249.61, 0.0)
@@ -42,14 +42,14 @@ heart_to_shalter = line_segment_3d(heart_end, SHALTER)
 curve3d = merged(shalter_to_heart, with_z(curve2d, Z))
 curve3d = merged(curve3d, heart_to_shalter)
 
-points = discretize(curve3d; npoints=1000)
+points = discretize(curve3d; npoints=150)
 
 fig = visualize_positions_3d(points)
 display(fig)
 
 generate_gcode(
     points[2:end, :] ./ 1000;
-    ausgabe_datei = joinpath("/home/tsanda/nextcloud/Research Projects/MMR/Code/GCode Roboter/General_Trajectory/Files", "heart.gcode"),
+    ausgabe_datei = joinpath("/home/tsanda/nextcloud/Research Projects/MMR/Code/GCode Roboter/General_Trajectory/Files", "heart150.gcode"),
     frame_time = 1.0,
     offset = (0.0, 0.0, 0.0),
     start = START,
