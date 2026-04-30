@@ -144,6 +144,21 @@ line_bbox == [(0.0, 2.0), (-1.0, -1.0), (0.5, 0.5)] || error("expected bounding_
 fn_bbox = bounding_box(t -> (t, -t); resolution = 3)
 fn_bbox == [(0.0, 1.0), (-1.0, 0.0)] || error("expected bounding_box(function) to match sampled min/max")
 
+# --- Fit curve into a bounding box (uniform scale + centered) ---
+diag_curve = ParametricCurve(t -> (2.0 * t, 4.0 * t))
+diag_fitted = fit_to_box(diag_curve, (-1.0, 1.0), (-1.0, 1.0); resolution = 9)
+diag_bbox = bounding_box(diag_fitted; resolution = 9)
+
+isapprox(diag_bbox[1][1], -0.5; atol = 1e-12) || error("expected fitted x_min to be -0.5")
+isapprox(diag_bbox[1][2], 0.5; atol = 1e-12) || error("expected fitted x_max to be 0.5")
+isapprox(diag_bbox[2][1], -1.0; atol = 1e-12) || error("expected fitted y_min to be -1.0")
+isapprox(diag_bbox[2][2], 1.0; atol = 1e-12) || error("expected fitted y_max to be 1.0")
+
+diag_center_x = 0.5 * (diag_bbox[1][1] + diag_bbox[1][2])
+diag_center_y = 0.5 * (diag_bbox[2][1] + diag_bbox[2][2])
+isapprox(diag_center_x, 0.0; atol = 1e-12) || error("expected fitted bbox center x to be 0")
+isapprox(diag_center_y, 0.0; atol = 1e-12) || error("expected fitted bbox center y to be 0")
+
 circle_len = approx_length(t -> (cospi(2t), sinpi(2t)); resolution = 20_001)
 abs(circle_len - 2 * pi) <= 2e-3 || error("expected approximated unit-circle length to be close to 2*pi")
 

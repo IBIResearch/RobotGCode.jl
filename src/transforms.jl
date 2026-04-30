@@ -179,6 +179,80 @@ function scaled(curve::ParametricCurve, factor::Real; center = nothing)
 	end)
 end
 
+"""
+	fit_to_box(curve, (x_min, x_max), (y_min, y_max), (z_min, z_max); resolution=4097)
+	fit_to_box(curve, limits...; resolution=4097)
+
+Return a transformed copy of `curve` that fits inside the provided
+axis-aligned bounding box.
+
+- Centers are aligned (curve bbox center -> target bbox center).
+- Scaling is uniform across all coordinates to preserve shape.
+- The scale factor is chosen as large as possible while still fitting in the
+  target box (i.e. the most restrictive axis hits its limits).
+
+The curve bounding box is approximated by sampling `resolution` values of `t`.
+Increase `resolution` if you need a tighter fit.
+"""
+function fit_to_box(curve::ParametricCurve, limits::Vararg{Tuple{<:Real,<:Real}}; resolution::Integer = 4097)
+	target_dim = length(limits)
+	target_dim > 0 || throw(ArgumentError("provide at least one (min, max) limit tuple"))
+
+	bbox = bounding_box(curve; resolution = resolution)
+	curve_dim = length(bbox)
+	target_dim == curve_dim || throw(ArgumentError("target box dimension mismatch: curve is $curve_dim D, got $target_dim limits"))
+
+	cur_mins = Vector{Float64}(undef, curve_dim)
+	cur_maxs = Vector{Float64}(undef, curve_dim)
+	target_mins = Vector{Float64}(undef, curve_dim)
+	target_maxs = Vector{Float64}(undef, curve_dim)
+
+	@inbounds for k in 1:curve_dim
+		(cur_lo, cur_hi) = bbox[k]
+		cur_mins[k] = cur_lo
+		cur_maxs[k] = cur_hi
+
+		(tgt_lo_raw, tgt_hi_raw) = limits[k]
+		tgt_lo = Float64(tgt_lo_raw)
+		tgt_hi = Float64(tgt_hi_raw)
+		tgt_lo < tgt_hi || throw(ArgumentError("limit #$k must satisfy min < max, got ($tgt_lo_raw, $tgt_hi_raw)"))
+		target_mins[k] = tgt_lo
+		target_maxs[k] = tgt_hi
+	end
+
+	cur_center = 0.5 .* (cur_mins .+ cur_maxs)
+	target_center = 0.5 .* (target_mins .+ target_maxs)
+	cur_ranges = cur_maxs .- cur_mins
+	target_ranges = target_maxs .- target_mins
+
+	scale = Inf
+	has_extent = false
+	@inbounds for k in 1:curve_dim
+		r = cur_ranges[k]
+		if r > 0.0
+			has_extent = true
+			scale = min(scale, target_ranges[k] / r)
+		end
+	end
+
+	# Degenerate curve (all points identical): just translate the point to the target center.
+	if !has_extent
+		offset = target_center .- cur_center
+		return translated(curve, offset)
+	end
+
+	isfinite(scale) || throw(ArgumentError("failed to compute a finite scale factor"))
+	scale > 0.0 || throw(ArgumentError("computed non-positive scale factor $scale"))
+
+	scaled_curve = scaled(curve, scale; center = cur_center)
+	offset = target_center .- cur_center
+	translated(scaled_curve, offset)
+end
+
+fit_to_box(curve::ParametricCurve, limits::AbstractVector{<:Tuple{<:Real,<:Real}}; kwargs...) = fit_to_box(curve, limits...; kwargs...)
+
+fit_to_box(f::Function, limits...; kwargs...) = fit_to_box(ParametricCurve(f), limits...; kwargs...)
+
 scaled(f::Function, factor::Real; kwargs...) = scaled(ParametricCurve(f), factor; kwargs...)
 
 function scaled(path::StrokePath, factor::Real; center = (0.0, 0.0))

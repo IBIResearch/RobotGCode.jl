@@ -149,6 +149,28 @@ Evaluate a raw parametric curve function `f(t)` at parameter `t in [0, 1]`.
 point_at(f::Function, t::Real) = point_at(ParametricCurve(f), t)
 
 """
+	line_segment_3d(p0, p1)
+
+Return a 3D straight-line parametric curve from `p0` to `p1`.
+The returned `ParametricCurve` is parameterized on `t in [0, 1]`.
+"""
+function line_segment_3d(p0, p1)
+	p0v = _point_to_vector(p0)
+	p1v = _point_to_vector(p1)
+	length(p0v) == 3 || throw(ArgumentError("line_segment_3d expects 3D points, got dimension $(length(p0v)) for p0"))
+	length(p1v) == 3 || throw(ArgumentError("line_segment_3d expects 3D points, got dimension $(length(p1v)) for p1"))
+
+	ParametricCurve(t -> begin
+		τ = clamp(float(t), 0.0, 1.0)
+		(
+			(1.0 - τ) * p0v[1] + τ * p1v[1],
+			(1.0 - τ) * p0v[2] + τ * p1v[2],
+			(1.0 - τ) * p0v[3] + τ * p1v[3],
+		)
+	end)
+end
+
+"""
 	approx_length(curve; resolution=4097)
 
 Approximate arc length of a parametric curve by dense sampling.

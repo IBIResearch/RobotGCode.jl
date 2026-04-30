@@ -4,8 +4,8 @@ export generate_gcode, visualize_positions_3d
 export TrueTypeFont, StrokePath, GlyphPath
 export load_truetype_font, glyph_index, glyph_segments, glyph_path
 export point_at, sample_strokes, advance_width
-export ParametricCurve, discretize, approx_length, bounding_box, merged
-export translated, rotated, scaled, zoomed, reversed, with_z
+export ParametricCurve, discretize, approx_length, bounding_box, merged, line_segment_3d
+export translated, rotated, scaled, fit_to_box, zoomed, reversed, with_z
 export string_curve
 
 """
@@ -36,9 +36,12 @@ include("strings.jl")
 function generate_gcode(
     positionen_m::Matrix{Float64};
     ausgabe_datei::String  = "output.gcode",
-    frame_time::Float64 = 1,        # Framezeit in s
+    frame_time::Float64 = 1.0,        # Framezeit in s
     offset::Tuple{Float64, Float64, Float64} = (0.0, 0.0, -110.0),  # Optionaler Offset in mm (x, y, z)
-    eingabe_name::String = ""
+    eingabe_name::String = "",
+    speed::Float64=5.0,
+    start::Tuple{Float64, Float64, Float64}=(-160.93, 200.0, 0),
+    shalter::Tuple{Float64, Float64, Float64}=(-160.93, 250.0, 0),
 )
     # Sicherstellen dass das Array die Form [N x 3] hat
     if size(positionen_m, 1) == 3 && size(positionen_m, 2) != 3
@@ -50,6 +53,7 @@ function generate_gcode(
     println("  Framezeit       : $frame_time s")
 
     # Meter → Millimeter
+
     positionen_mm = positionen_m .* 1000.0
 
     lines = String[]
@@ -69,29 +73,24 @@ function generate_gcode(
     push!(lines, "G90       ; Absolute Koordinaten")
     push!(lines, "")
 
+    push!(lines, "; START")
+    push!(lines, "G1 X$(start[1]) Y$(start[2]) Z$(start[3]) F10")
+    push!(lines, "; SHALTER")
+    push!(lines, "G1 X$(shalter[1]) Y$(shalter[2]) Z$(shalter[3]) F10")
+
     # --- Alle Positionen abfahren (direkt von aktueller Position) ---
     push!(lines, "; Trajektorie abfahren (direkt von aktueller Position)")
     for i in 1:n_punkte
-        if i != 1
-            lastx = round(positionen_mm[i-1, 1] - offset[1], digits=3) #x and z axis must be inverted because of the robot coordinate system
-            lasty = -round(positionen_mm[i-1, 2] - offset[2], digits=3)
-            lastz = -round(positionen_mm[i-1, 3] - offset[3], digits=3)
-        else
-            vorschub = 20.0 # mm/s 
-        end
-
         x = round(positionen_mm[i, 1] - offset[1], digits=3)
-        y = -round(positionen_mm[i, 2] - offset[2], digits=3)
-        z = -round(positionen_mm[i, 3] - offset[3], digits=3)
+        y = round(positionen_mm[i, 2] - offset[2], digits=3)
+        z = round(positionen_mm[i, 3] - offset[3], digits=3)
 
-        # Vorschub aus Distanz zum vorherigen Punkt berechnen und durch Framezeit als Parameter teilen
-        if i != 1
-            vorschub = (sqrt((x - lastx)^2 + (y - lasty)^2 + (z - lastz)^2) / frame_time)  # in mm/s
-        end
-
-        push!(lines, "G1 X$(x) Y$(y) Z$(z) F$(vorschub)")
+        push!(lines, "G1 X$(x) Y$(y) Z$(z) F$(speed)")
     end
     push!(lines, "")
+
+    push!(lines, "; START")
+    push!(lines, "G1 X$(start[1]) Y$(start[2]) Z$(start[3]) F10")
 
     # --- 3 Sekunden warten an der letzten Position ---
     push!(lines, "; 6 Sekunden warten an der letzten Position")
@@ -117,7 +116,10 @@ function generate_gcode(;
     eingabe_datei::String  = "input.h5",
     ausgabe_datei::String  = "output.gcode",
     frame_time::Float64 = 1,        # Framezeit in s
-    offset::Tuple{Float64, Float64, Float64} = (0.0, 0.0, -110.0)  # Optionaler Offset in mm (x, y, z)
+    offset::Tuple{Float64, Float64, Float64} = (0.0, 0.0, -110.0),  # Optionaler Offset in mm (x, y, z),
+    speed::Float64=5.0,
+    start::Tuple{Float64, Float64, Float64} = (-160.93, 200.0, 0),
+    shalter::Tuple{Float64, Float64, Float64} = (-160.93, 250.0, 0),
 )
 
     # --- HDF5 einlesen ---
@@ -126,7 +128,7 @@ function generate_gcode(;
         read(f, "trajectory/position")   # Shape: [3 x N] oder [N x 3]
     end
 
-    generate_gcode(positionen_m; ausgabe_datei, frame_time, offset, eingabe_name=eingabe_datei)
+    generate_gcode(positionen_m; ausgabe_datei, frame_time, offset, eingabe_name=eingabe_datei, speed=speed, start=start, shalter=shalter)
 end
 
 end # module RobotGCode
